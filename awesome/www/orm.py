@@ -27,4 +27,5 @@ async def select(sql,args,size=None):
     global __pool
     with (await __pool) as conn:
         cur = await conn.cursor(aiomysql.DictCursor)
+        await conn.execute(sql.replace('?','%s'),args or ())
 
