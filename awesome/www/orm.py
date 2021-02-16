@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import logging
 logging.basicConfig(level=logging.INFO)
 import asyncio
@@ -17,15 +18,38 @@ async def create_pool(loop,**kw):  #连接数据库信息
         db = kw.get('db','db1'),
         charset = kw.get('charset','utf8'),
         autocommit = kw.get('autocommit','True'),
-        maxsize = kw.get('maxsize','10'),
-        minsize = kw.get('minsize','1'),
+        maxsize = kw.get('maxsize',10),
+        minsize = kw.get('minsize',1),
         loop = loop
     )
 
-async def select(sql,args,size=None):
+async def select(sql,args,size=None):  #select
     log(sql,args)
     global __pool
-    with (await __pool) as conn:
-        cur = await conn.cursor(aiomysql.DictCursor)
-        await conn.execute(sql.replace('?','%s'),args or ())
+    async with __pool.get() as conn:
+        async with conn.cursor(aiomysql.DictCursor) as cur:
+            await cur.execute(sql.replace('?','%s'),args or ())
+        if size:
+            rs = await cur.fetchmany(size)
+        else:
+            rs = await cur.fetchall()
+        logging.info('rows returned: %s' % len(rs))
+        return rs
+
+async def execute(sql,args,autocommit=True):  #insert,update,delete
+    log(sql)
+    async with __pool.get() as conn:
+        if not autocommit:
+            await conn.begin()
+        try:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                await cur.execute(sql.replace('?','%s'),args)
+                affected = cur.rowcount
+                if not autocommit:
+                    await conn.commit()
+        except BaseException as e:
+            if not autocommit:
+                await conn.rollback()
+            raise
+        return affected
 
