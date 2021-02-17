@@ -30,12 +30,13 @@ async def select(sql,args,size=None):  #select
         async with conn.cursor(aiomysql.DictCursor) as cur:
             await cur.execute(sql.replace('?','%s'),args or ())
         if size:
-            rs = await cur.fetchmany(size)
+            rs = await cur.fetchmany(size) #fetchmany()方法可以获得size条数据
         else:
-            rs = await cur.fetchall()
+            rs = await cur.fetchall()   #fetchall()方法获取全部数据
         logging.info('rows returned: %s' % len(rs))
         return rs
 
+#execute中cursor对象不返回结果集，而是通过rowcount返回结果数
 async def execute(sql,args,autocommit=True):  #insert,update,delete
     log(sql)
     async with __pool.get() as conn:
@@ -52,4 +53,5 @@ async def execute(sql,args,autocommit=True):  #insert,update,delete
                 await conn.rollback()
             raise
         return affected
+
 
